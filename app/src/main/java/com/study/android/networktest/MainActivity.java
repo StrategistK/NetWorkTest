@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -14,6 +15,11 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import java.io.StringReader;
 
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
@@ -58,15 +64,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void run() {
                 try {
                     HttpClient httpClient = new DefaultHttpClient();
-                    HttpGet httpGet = new HttpGet("http://www.bing.com");
+                    HttpGet httpGet = new HttpGet("http://10.0.2.2/get_data.xml");
                     HttpResponse httpResponse = httpClient.execute(httpGet);
                     if (httpResponse.getStatusLine().getStatusCode() == 200){
                         HttpEntity entity = httpResponse.getEntity();
                         String response = EntityUtils.toString(entity,"utf-8");
-                        Message message = new Message();
-                        message.what = SHOW_RESPONSE;
-                        message.obj = response.toString();
-                        mHandler.sendMessage(message);
+                        parseXMLWithPull(response);
                     }
 
                 }catch (Exception e) {
@@ -74,5 +77,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
         }).start();
+    }
+
+    private void parseXMLWithPull(String xmlData) {
+        try {
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+            XmlPullParser xmlPullParser = factory.newPullParser();
+            xmlPullParser.setInput(new StringReader(xmlData));
+            int eventType = xmlPullParser.getEventType();
+            String id = "";
+            String name = "";
+            String version = "";
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                String nodeName = xmlPullParser.getName();
+                switch (eventType) {
+                    //开始解析某个节点
+                    case XmlPullParser.START_TAG:{
+                        if ("id".equals(nodeName)){
+                            id = xmlPullParser.nextText();
+                        }else if ("name".equals(nodeName)) {
+                            name = xmlPullParser.nextText();
+                        }else if ("version".equals(nodeName)){
+                            version = xmlPullParser.nextText();
+                        }
+                        break;
+                    }
+                    //完成解析某个节点
+                    case XmlPullParser.END_TAG: {
+                        if ("app".equals(nodeName)) {
+                            Log.d("MainActivity","id is " + id);
+                            Log.d("MainActivity","name is " + name);
+                            Log.d("MainActivity","version is " + version);
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+                eventType = xmlPullParser.next();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
